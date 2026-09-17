@@ -70,6 +70,9 @@ type SyncFlags struct {
 	strictTDDSet     bool
 	permissionsSet   bool
 	themeSet         bool
+
+	ArchitectModel string
+	BuilderModel   string
 }
 
 // SyncResult holds the outcome of a sync execution.
@@ -123,6 +126,8 @@ func ParseSyncFlags(args []string) (SyncFlags, error) {
 	fs.BoolVar(&opts.IncludeTheme, "include-theme", false, "include theme component in sync")
 	fs.StringVar(&opts.OpenCodeBackgroundSubagents, "opencode-background-subagents", "", "--opencode-background-subagents=auto|on|off; env: GENTLE_AI_OPENCODE_BACKGROUND_SUBAGENTS; eligible versions use a managed launcher")
 	fs.StringVar(&opts.PiBackgroundSubagents, "pi-background-subagents", "", "--pi-background-subagents=auto|on|off; env: GENTLE_AI_PI_BACKGROUND_SUBAGENTS; the resolved policy is projected for gentle-pi")
+	fs.StringVar(&opts.ArchitectModel, "architect-model", "", "model for the Architect subagent in Gentle AI Lite")
+	fs.StringVar(&opts.BuilderModel, "builder-model", "", "model for the Builder subagent in Gentle AI Lite")
 	fs.BoolVar(&opts.DryRun, "dry-run", false, "preview plan without executing")
 	registerListFlag(fs, "profile", &opts.rawProfiles)
 	registerListFlag(fs, "profile-phase", &opts.rawProfilePhases)
@@ -157,6 +162,10 @@ func ParseSyncFlags(args []string) (SyncFlags, error) {
 			opts.OpenCodeBackgroundSubagentsSet = true
 		case "pi-background-subagents":
 			opts.PiBackgroundSubagentsSet = true
+		case "architect-model":
+			// Handled
+		case "builder-model":
+			// Handled
 		}
 	})
 
@@ -202,6 +211,8 @@ FLAGS
   --pi-background-subagents=auto|on|off
                                      Project the resolved Pi background-subagent policy for gentle-pi; env: GENTLE_AI_PI_BACKGROUND_SUBAGENTS
                                      auto inherits managed on/off and never enables by itself; only managed policy files are ever overwritten
+  --architect-model <model>          Model for Architect subagent (Gentle AI Lite)
+  --builder-model <model>            Model for Builder subagent (Gentle AI Lite)
   --dry-run                          Preview plan without executing
   --help, -h                         Show this help
 `)

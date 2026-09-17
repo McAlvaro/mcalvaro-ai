@@ -221,10 +221,13 @@ func findProjectRoot(dir string) (string, bool) {
 	return "", false
 }
 
-// overlayAssetPath returns the embedded asset path for the SDD agent overlay
-// based on the selected SDD mode. Empty or SDDModeSingle uses the single
-// orchestrator overlay; SDDModeMulti uses the multi-agent overlay.
+// overlayAssetPath returns the embedded asset path for the agent overlay
+// based on the selected mode. SDDModeLite or empty uses the lite-overlay
+// with the Clean Triad; SDDModeMulti uses the multi-agent overlay.
 func overlayAssetPath(sddMode model.SDDModeID) string {
+	if sddMode == model.SDDModeLite || sddMode == "" {
+		return "opencode/lite-overlay.json"
+	}
 	if sddMode == model.SDDModeMulti {
 		return "opencode/sdd-overlay-multi.json"
 	}
@@ -232,6 +235,7 @@ func overlayAssetPath(sddMode model.SDDModeID) string {
 }
 
 var compatibilitySDDSkillIDs = []model.SkillID{
+	"spec-unificada",
 	"sdd-init", "sdd-explore", "sdd-research", "sdd-propose", "sdd-spec",
 	"sdd-design", "sdd-tasks", "sdd-apply", "sdd-verify", "sdd-archive",
 	"sdd-onboard", "judgment-day",

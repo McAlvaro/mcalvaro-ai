@@ -23,6 +23,9 @@ type InstallFlags struct {
 
 	PiBackgroundSubagents    string
 	PiBackgroundSubagentsSet bool
+
+	ArchitectModel string
+	BuilderModel   string
 }
 
 const installChannelHelp = "Gentle AI channel: stable (default), beta, or nightly (alias for beta) — env: GENTLE_AI_CHANNEL"
@@ -46,6 +49,8 @@ FLAGS
   --pi-background-subagents=auto|on|off
                                      Project the resolved Pi background-subagent policy for gentle-pi; env: GENTLE_AI_PI_BACKGROUND_SUBAGENTS
                                      auto inherits managed on/off and never enables by itself; only managed policy files are ever overwritten
+  --architect-model <model>          Model for Architect subagent (Gentle AI Lite)
+  --builder-model <model>            Model for Builder subagent (Gentle AI Lite)
   --dry-run                          Preview plan without executing
   --help, -h                         Show this help
 `)
@@ -69,6 +74,8 @@ func ParseInstallFlags(args []string) (InstallFlags, error) {
 	fs.StringVar(&opts.Channel, "channel", "", installChannelHelp)
 	fs.StringVar(&opts.OpenCodeBackgroundSubagents, "opencode-background-subagents", "", "--opencode-background-subagents=auto|on|off; env: GENTLE_AI_OPENCODE_BACKGROUND_SUBAGENTS; eligible versions use a managed launcher")
 	fs.StringVar(&opts.PiBackgroundSubagents, "pi-background-subagents", "", "--pi-background-subagents=auto|on|off; env: GENTLE_AI_PI_BACKGROUND_SUBAGENTS; the resolved policy is projected for gentle-pi")
+	fs.StringVar(&opts.ArchitectModel, "architect-model", "", "model for the Architect subagent in Gentle AI Lite")
+	fs.StringVar(&opts.BuilderModel, "builder-model", "", "model for the Builder subagent in Gentle AI Lite")
 	fs.BoolVar(&opts.DryRun, "dry-run", false, "preview plan without executing")
 
 	if err := fs.Parse(args); err != nil {

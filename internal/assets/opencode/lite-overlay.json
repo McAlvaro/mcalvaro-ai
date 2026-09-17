@@ -1,0 +1,63 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "orchestrator": {
+      "mode": "primary",
+      "model": "openai/gpt-5.6-sol",
+      "description": "Orquestador principal: gestiona requerimientos y coordina arquitectura y código",
+      "prompt": "{file:./prompts/orchestrator.md}",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "architect": "allow",
+          "builder": "allow"
+        }
+      }
+    },
+    "architect": {
+      "mode": "subagent",
+      "model": "openai/gpt-5.6-terra",
+      "description": "Arquitecto: explora el repositorio y diseña la especificación técnica unificada",
+      "prompt": "{file:./prompts/architect.md}",
+      "permission": {
+        "write": "deny",
+        "edit": "deny",
+        "task": "deny"
+      }
+    },
+    "builder": {
+      "mode": "subagent",
+      "model": "openai/gpt-5.6-luna",
+      "description": "Obrero: implementa código siguiendo TDD estricto y ejecuta el harness local",
+      "prompt": "{file:./prompts/builder.md}",
+      "permission": {
+        "task": "deny"
+      }
+    }
+  },
+  "mcp": {
+    "codegraph": {
+      "command": [
+        "codegraph",
+        "serve",
+        "--mcp"
+      ],
+      "enabled": true,
+      "type": "local"
+    },
+    "context7": {
+      "enabled": true,
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "engram": {
+      "command": [
+        "engram",
+        "mcp",
+        "--tools=agent"
+      ],
+      "enabled": true,
+      "type": "local"
+    }
+  }
+}

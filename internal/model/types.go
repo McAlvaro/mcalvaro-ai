@@ -210,6 +210,7 @@ type SDDModeID string
 const (
 	SDDModeSingle SDDModeID = "single"
 	SDDModeMulti  SDDModeID = "multi"
+	SDDModeLite   SDDModeID = "lite"
 )
 
 // SDDProfileStrategyID defines how sync handles OpenCode SDD profiles.

@@ -87,6 +87,8 @@ func RunArgs(args []string, stdout io.Writer) error {
 		case "help", "--help", "-h":
 			printHelp(stdout, Version)
 			return nil
+		case "test":
+			return cli.RunTest(args[1:], stdout)
 		case "bench-model-picker":
 			if handled, err := runBenchModelPickerCommand(args[1:], stdout); handled {
 				return err
