@@ -54,7 +54,9 @@ func Detect(dir string) (*ProjectStack, error) {
 	if fileExists(pkgJSONPath) {
 		pm := detectNodePackageManager(dir)
 		steps := detectNodeSteps(dir, pkgJSONPath, pm)
-		return &ProjectStack{Type: StackNode, Steps: steps}, nil
+		if len(steps) > 0 {
+			return &ProjectStack{Type: StackNode, Steps: steps}, nil
+		}
 	}
 
 	// 3. Rust project (Cargo.toml)
@@ -125,10 +127,6 @@ func detectNodeSteps(dir, pkgJSONPath, pm string) []Step {
 				}
 			}
 		}
-	}
-
-	if len(steps) == 0 {
-		steps = append(steps, Step{Name: "Node Test", Cmd: pm, Args: []string{"test"}})
 	}
 
 	return steps
