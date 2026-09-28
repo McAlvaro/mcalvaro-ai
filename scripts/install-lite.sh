@@ -40,9 +40,11 @@ if command -v go >/dev/null 2>&1; then
         info "Compiling mcalvaro-ai from repository: ${REPO_DIR}"
         go build -o "${INSTALL_DIR}/mcalvaro-ai" "${REPO_DIR}/cmd/gentle-ai"
     else
-        info "Installing from Go module..."
-        GOBIN="${INSTALL_DIR}" go install github.com/gentleman-programming/gentle-ai/v3/cmd/gentle-ai@latest
-        mv "${INSTALL_DIR}/gentle-ai" "${INSTALL_DIR}/mcalvaro-ai"
+        info "Cloning and building from https://github.com/McAlvaro/mcalvaro-ai.git..."
+        TMP_SRC=$(mktemp -d)
+        git clone --depth 1 https://github.com/McAlvaro/mcalvaro-ai.git "${TMP_SRC}"
+        (cd "${TMP_SRC}" && go build -o "${INSTALL_DIR}/mcalvaro-ai" ./cmd/gentle-ai)
+        rm -rf "${TMP_SRC}"
     fi
 
     # Create helpful aliases/symlinks
