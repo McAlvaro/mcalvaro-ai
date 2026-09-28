@@ -6,15 +6,15 @@ import (
 )
 
 func printHelp(w io.Writer, version string) {
-	fmt.Fprintf(w, `gentle-ai — Gentle-AI Lite: Ecosystem, Frameworks, Workflows (%s)
+	fmt.Fprintf(w, `mcalvaro-ai (Gentle AI Lite) — Ecosystem, Frameworks, Workflows (%s)
 
 USAGE
-  gentle-ai                     Launch interactive TUI
-  gentle-ai <command> [flags]
+  mcalvaro-ai                   Launch interactive TUI
+  mcalvaro-ai <command> [flags]
 
 COMMANDS
   install      Configure AI coding agents on this machine (Clean Triad: Orchestrator, Architect, Builder)
-  uninstall    Remove Gentle AI managed files from this machine
+  uninstall    Remove managed files from this machine
   sync         Sync agent configs and skills to current version
   test         Run deterministic test harness (compiler, linter, tests)
   skill-registry refresh
@@ -28,7 +28,6 @@ COMMANDS
 FLAGS
   --help, -h    Show global help
 
-Run 'gentle-ai help' for this message.
-Documentation: https://github.com/Gentleman-Programming/gentle-ai
+Run 'mcalvaro-ai help' for this message.
 `, version)
 }

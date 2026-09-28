@@ -1,7 +1,9 @@
 package harness
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,5 +68,25 @@ func TestRun_EmptyDir(t *testing.T) {
 	}
 	if res.ExitCode != 0 {
 		t.Errorf("expected exit code 0, got %d", res.ExitCode)
+	}
+}
+
+func TestRunWithOptions_JSON(t *testing.T) {
+	dir := t.TempDir()
+	var stdout bytes.Buffer
+	res, err := RunWithOptions(context.Background(), dir, &stdout, os.Stderr, Options{JSON: true})
+	if err != nil {
+		t.Fatalf("RunWithOptions error: %v", err)
+	}
+	if res.ExitCode != 0 {
+		t.Errorf("expected exit code 0, got %d", res.ExitCode)
+	}
+
+	var decoded Result
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("JSON decode error: %v", err)
+	}
+	if decoded.Stack != StackNone {
+		t.Errorf("expected StackNone, got %v", decoded.Stack)
 	}
 }

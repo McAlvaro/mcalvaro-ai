@@ -1,6 +1,7 @@
 # Binaries
 /gentle-ai
 /gentle-ai-lite
+/mcalvaro-ai
 *.exe
 *.dll
 *.so

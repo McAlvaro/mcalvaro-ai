@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Step represents a single command to run within the test harness.
@@ -132,58 +134,156 @@ func detectNodeSteps(dir, pkgJSONPath, pm string) []Step {
 	return steps
 }
 
-// Result carries summary information about the executed harness run.
-type Result struct {
-	Stack       StackType
-	TotalSteps  int
-	PassedSteps int
-	FailedStep  string
-	ExitCode    int
+// StepResult holds detailed execution metrics for an individual step.
+type StepResult struct {
+	Name       string `json:"name"`
+	Command    string `json:"command"`
+	Passed     bool   `json:"passed"`
+	ExitCode   int    `json:"exit_code"`
+	DurationMs int64  `json:"duration_ms"`
+	Output     string `json:"output,omitempty"`
 }
 
-// Run executes the test harness for the project located at dir.
+// Result carries summary information about the executed harness run.
+type Result struct {
+	Stack       StackType    `json:"stack"`
+	Passed      bool         `json:"passed"`
+	TotalSteps  int          `json:"total_steps"`
+	PassedSteps int          `json:"passed_steps"`
+	FailedStep  string       `json:"failed_step,omitempty"`
+	ExitCode    int          `json:"exit_code"`
+	DurationMs  int64        `json:"duration_ms"`
+	Steps       []StepResult `json:"steps"`
+}
+
+// Options configures the test harness execution.
+type Options struct {
+	JSON    bool
+	Timeout time.Duration
+}
+
+const (
+	ansiReset  = "\033[0m"
+	ansiBold   = "\033[1m"
+	ansiGreen  = "\033[32m"
+	ansiRed    = "\033[31m"
+	ansiYellow = "\033[33m"
+	ansiCyan   = "\033[36m"
+	ansiDim    = "\033[2m"
+)
+
+// Run executes the test harness for the project located at dir with default options.
 func Run(ctx context.Context, dir string, stdout, stderr io.Writer) (*Result, error) {
+	return RunWithOptions(ctx, dir, stdout, stderr, Options{})
+}
+
+// RunWithOptions executes the test harness with the specified configuration options.
+func RunWithOptions(ctx context.Context, dir string, stdout, stderr io.Writer, opts Options) (*Result, error) {
+	startTime := time.Now()
+
 	stack, err := Detect(dir)
 	if err != nil {
 		return nil, fmt.Errorf("detect stack: %w", err)
 	}
 
-	if stack.Type == StackNone || len(stack.Steps) == 0 {
-		_, _ = fmt.Fprintf(stdout, "No supported project stack detected in %s (no go.mod, package.json, Cargo.toml, or Python configs found).\n", dir)
-		return &Result{Stack: StackNone, ExitCode: 0}, nil
+	if opts.Timeout == 0 {
+		opts.Timeout = 3 * time.Minute
 	}
-
-	_, _ = fmt.Fprintf(stdout, "==> Gentle AI Test Harness: detected %s stack with %d step(s)\n", strings.ToUpper(string(stack.Type)), len(stack.Steps))
 
 	res := &Result{
 		Stack:      stack.Type,
+		Passed:     true,
 		TotalSteps: len(stack.Steps),
+		Steps:      make([]StepResult, 0, len(stack.Steps)),
+	}
+
+	if stack.Type == StackNone || len(stack.Steps) == 0 {
+		if opts.JSON {
+			res.DurationMs = time.Since(startTime).Milliseconds()
+			_ = json.NewEncoder(stdout).Encode(res)
+			return res, nil
+		}
+		_, _ = fmt.Fprintf(stdout, "%sNo supported project stack detected in %s (no go.mod, package.json, Cargo.toml, or Python configs found).%s\n", ansiDim, dir, ansiReset)
+		return res, nil
+	}
+
+	if !opts.JSON {
+		_, _ = fmt.Fprintf(stdout, "\n%s%s==> mcalvaro-ai Test Harness: detected %s stack with %d check(s)%s\n\n", ansiBold, ansiCyan, strings.ToUpper(string(stack.Type)), len(stack.Steps), ansiReset)
 	}
 
 	for i, step := range stack.Steps {
-		_, _ = fmt.Fprintf(stdout, "\n[%d/%d] Running %s (%s %s)...\n", i+1, len(stack.Steps), step.Name, step.Cmd, strings.Join(step.Args, " "))
+		stepStart := time.Now()
+		cmdStr := step.Cmd + " " + strings.Join(step.Args, " ")
 
-		cmd := exec.CommandContext(ctx, step.Cmd, step.Args...)
-		cmd.Dir = dir
-		cmd.Stdout = stdout
-		cmd.Stderr = stderr
-
-		if err := cmd.Run(); err != nil {
-			exitCode := 1
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			}
-			res.FailedStep = step.Name
-			res.ExitCode = exitCode
-			_, _ = fmt.Fprintf(stderr, "\nFAILED: step %q failed with exit code %d\n", step.Name, exitCode)
-			return res, fmt.Errorf("step %q failed: %w", step.Name, err)
+		if !opts.JSON {
+			_, _ = fmt.Fprintf(stdout, "  %s[%d/%d]%s %s%-20s%s %s(%s)%s\n", ansiDim, i+1, len(stack.Steps), ansiReset, ansiBold, step.Name, ansiReset, ansiDim, cmdStr, ansiReset)
 		}
 
+		stepCtx, stepCancel := context.WithTimeout(ctx, opts.Timeout)
+		cmd := exec.CommandContext(stepCtx, step.Cmd, step.Args...)
+		cmd.Dir = dir
+
+		var buf bytes.Buffer
+		if opts.JSON {
+			cmd.Stdout = &buf
+			cmd.Stderr = &buf
+		} else {
+			// Tee output to buffer and stdout/stderr
+			cmd.Stdout = io.MultiWriter(stdout, &buf)
+			cmd.Stderr = io.MultiWriter(stderr, &buf)
+		}
+
+		cmdErr := cmd.Run()
+		stepCancel()
+		stepDuration := time.Since(stepStart).Milliseconds()
+
+		stepRes := StepResult{
+			Name:       step.Name,
+			Command:    cmdStr,
+			DurationMs: stepDuration,
+			Output:     buf.String(),
+		}
+
+		if cmdErr != nil {
+			exitCode := 1
+			if exitErr, ok := cmdErr.(*exec.ExitError); ok {
+				exitCode = exitErr.ExitCode()
+			}
+			stepRes.Passed = false
+			stepRes.ExitCode = exitCode
+			res.Steps = append(res.Steps, stepRes)
+
+			res.Passed = false
+			res.FailedStep = step.Name
+			res.ExitCode = exitCode
+			res.DurationMs = time.Since(startTime).Milliseconds()
+
+			if opts.JSON {
+				_ = json.NewEncoder(stdout).Encode(res)
+				return res, fmt.Errorf("step %q failed: %w", step.Name, cmdErr)
+			}
+
+			_, _ = fmt.Fprintf(stderr, "\n  %s✖ FAILED:%s %s (exit code %d) %s[%dms]%s\n", ansiBold+ansiRed, ansiReset, step.Name, exitCode, ansiDim, stepDuration, ansiReset)
+			return res, fmt.Errorf("step %q failed: %w", step.Name, cmdErr)
+		}
+
+		stepRes.Passed = true
+		stepRes.ExitCode = 0
+		res.Steps = append(res.Steps, stepRes)
 		res.PassedSteps++
-		_, _ = fmt.Fprintf(stdout, "PASSED: %s\n", step.Name)
+
+		if !opts.JSON {
+			_, _ = fmt.Fprintf(stdout, "  %s✔ PASSED:%s %s %s[%dms]%s\n\n", ansiBold+ansiGreen, ansiReset, step.Name, ansiDim, stepDuration, ansiReset)
+		}
 	}
 
-	_, _ = fmt.Fprintf(stdout, "\n==> ALL CHECKS PASSED (exit code 0)\n")
-	res.ExitCode = 0
+	res.DurationMs = time.Since(startTime).Milliseconds()
+
+	if opts.JSON {
+		_ = json.NewEncoder(stdout).Encode(res)
+		return res, nil
+	}
+
+	_, _ = fmt.Fprintf(stdout, "%s%s✔ ALL %d CHECKS PASSED (exit code 0)%s %s[%dms]%s\n\n", ansiBold+ansiGreen, ansiBold, len(stack.Steps), ansiReset, ansiDim, res.DurationMs, ansiReset)
 	return res, nil
 }
