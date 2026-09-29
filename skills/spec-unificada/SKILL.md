@@ -1,6 +1,6 @@
 ---
 name: spec-unificada
-description: "Diseño y especificación técnica unificada para Gentle AI Lite. Explora el código, valida arquitectura y genera el contrato funcional y checklist TDD."
+description: "Trigger: Al diseñar una feature o fix complejo. Especificación técnica unificada para Gentle AI Lite con arquitectura, contrato y checklist TDD."
 disable-model-invocation: true
 user-invocable: false
 license: MIT

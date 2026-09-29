@@ -1593,8 +1593,8 @@ func (s componentApplyStep) Run() error {
 			engramCommand = binaryPath
 		} else if installedPath, found := resolveEngramInstalledPath(s.profile); !found {
 			// Engram not on PATH — install it.
-			if s.profile.PackageManager == "brew" {
-				// macOS (or Linux with Homebrew): use brew tap + brew install.
+			if s.profile.OS == "darwin" && s.profile.PackageManager == "brew" {
+				// macOS: use brew tap + brew install.
 				commands, err := engram.InstallCommand(s.profile)
 				if err != nil {
 					return fmt.Errorf("resolve install command for component %q: %w", s.component, err)
@@ -1817,54 +1817,6 @@ func (s componentApplyStep) Run() error {
 		}
 		return nil
 	case model.ComponentGGA:
-		if !ggaAvailable(s.profile) {
-			// GGA not found on any known PATH — install it.
-			if s.profile.OS == "windows" {
-				if err := cleanupGGAInstallDir(); err != nil {
-					return err
-				}
-			}
-			commands, err := gga.InstallCommand(s.profile)
-			if err != nil {
-				return fmt.Errorf("resolve install command for component %q: %w", s.component, err)
-			}
-			installErr := runCommandSequence(commands)
-			if installErr != nil {
-				if ggaAvailable(s.profile) {
-					// The GGA install script uses `set -e` and `read -p` for
-					// the "already installed" confirmation. Without a TTY
-					// (common in automated/re-run scenarios), `read` fails
-					// with exit code 1 and `set -e` kills the script before
-					// it can exit 0. If GGA is actually available after the
-					// script ran, the install succeeded functionally — treat
-					// as success but warn the user.
-					fmt.Fprintf(os.Stderr, "WARNING: gga install command reported an error but gga is available — continuing. Error was: %v\n", installErr)
-				} else {
-					return installErr
-				}
-			}
-		}
-		if err := gga.EnsureRuntimeAssets(s.homeDir); err != nil {
-			return fmt.Errorf("ensure gga runtime assets: %w", err)
-		}
-		if runtime.GOOS == "windows" {
-			if err := gga.EnsurePowerShellShim(s.homeDir); err != nil {
-				return fmt.Errorf("ensure gga powershell shim: %w", err)
-			}
-			if err := gga.EnsureCommandShim(s.homeDir); err != nil {
-				return fmt.Errorf("ensure gga command shim: %w", err)
-			}
-			// Add GGA bin dir to the user PATH persistently on Windows.
-			// GGA's install.sh drops the binary into ~/bin which is not on PATH by default.
-			ggaBinDir := filepath.Join(s.homeDir, "bin")
-			if err := addUserPath(ggaBinDir); err != nil {
-				// Non-fatal: warn but continue — GGA was installed successfully.
-				fmt.Fprintf(os.Stderr, "WARNING: could not add %s to PATH: %v\n", ggaBinDir, err)
-			}
-		}
-		if _, err := gga.Inject(s.homeDir, s.agents); err != nil {
-			return fmt.Errorf("inject gga config: %w", err)
-		}
 		return nil
 	case model.ComponentTheme:
 		for _, adapter := range adapters {

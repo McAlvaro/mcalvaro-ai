@@ -193,7 +193,8 @@ func RunArgs(args []string, stdout io.Writer) error {
 	// CLI/TUI dispatch. Errors are non-fatal — logged and swallowed.
 	// Skip auto-upgrade on TUI entry (len(args) == 0) to avoid silently
 	// replacing the binary while the user expects a clean TUI launch (#696).
-	isTUIFlow := len(args) == 0
+	isBareInstall := len(args) == 1 && args[0] == "install"
+	isTUIFlow := len(args) == 0 || (isBareInstall && isattyFn(os.Stdin.Fd()) && isattyFn(os.Stdout.Fd()))
 	if !isTUIFlow && !isExplicitUpdateFlow(args) {
 		if err := selfUpdateFn(context.Background(), Version, resolveProfile(), stdout); err != nil {
 			_, _ = fmt.Fprintf(stdout, "Warning: self-update failed: %v\n", err)
@@ -201,84 +202,7 @@ func RunArgs(args []string, stdout io.Writer) error {
 	}
 
 	if len(args) == 0 {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("resolve user home directory: %w", err)
-		}
-
-		// Load persisted state so the TUI pre-selects the agents the user
-		// previously chose instead of re-selecting every detected config dir.
-		// Missing state preserves the first-time filesystem fallback; unreadable
-		// state cannot safely be treated as an empty selection.
-		installedState, err := state.Read(homeDir)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("read install state: %w", err)
-		}
-
-		// Deferred sync: if a previous gentle-ai self-upgrade set PendingSync=true,
-		// run sync now with the new binary before entering the TUI. On success,
-		// clear the flag. On failure, log and leave the flag set for idempotent
-		// retry on the next launch (per spec scenario "deferred sync fails → retry").
-		// This is non-fatal — a sync failure must never block the TUI from opening.
-		if installedState.PendingSync {
-			if err := deferredSyncFn(); err != nil {
-				_, _ = fmt.Fprintf(stdout, "Warning: deferred sync failed: %v\n", err)
-				// Leave PendingSync=true so the next launch retries.
-			} else {
-				installedState.PendingSync = false
-				if writeErr := state.Write(homeDir, installedState); writeErr != nil {
-					// Best-effort: surface the failure so it's not silently swallowed.
-					// Idempotent re-sync on the next launch is acceptable.
-					_, _ = fmt.Fprintf(stdout, "Warning: failed to clear PendingSync flag: %v\n", writeErr)
-				}
-			}
-			// TUI self-update path: the previous launch completed a gentle-ai
-			// self-upgrade under the old binary and set PendingSync=true. We are
-			// now running under the new binary; print the doctor advisory so the
-			// user can verify ecosystem health against the post-upgrade state.
-			// Print regardless of sync outcome — the advisory is informational.
-			printPostUpgradeDoctorAdvisory(stdout)
-		}
-
-		m := tui.NewModel(result, Version, installedState)
-		m.ExecuteFn = tuiExecuteWithBackground
-		m.RestoreFn = tuiRestore
-		m.DeleteBackupFn = func(manifest backup.Manifest) error {
-			return backup.DeleteBackup(manifest)
-		}
-		m.RenameBackupFn = func(manifest backup.Manifest, newDesc string) error {
-			return backup.RenameBackup(manifest, newDesc)
-		}
-		m.TogglePinFn = func(manifest backup.Manifest) error {
-			return backup.TogglePin(manifest)
-		}
-		m.ListBackupsFn = ListBackups
-		m.Backups = ListBackups()
-		m.UpgradeFn = tuiUpgrade(resolveProfile(), homeDir)
-		m.SyncFn = tuiSync(homeDir)
-		m.UninstallFn = tuiUninstall(homeDir)
-		m.UninstallWithProfilesFn = tuiUninstallWithProfiles(homeDir)
-		// Slice 3b — wire the 4-layer managed-uninstall runner used by the
-		// standalone "Uninstall OpenCode Plugin" TUI shortcut. The TUI
-		// model falls back to opencodeplugin.Uninstall when this field is
-		// nil; assigning it explicitly here keeps the production wiring
-		// visible at the same seam as the other injected functions.
-		m.OpenCodePluginUninstallFn = opencodeplugin.Uninstall
-		// The review store is clone-scoped, so the TUI acts on the repository
-		// the user launched it from. Both closures resolve the working
-		// directory at call time rather than at wiring time, so a survey and
-		// the reset it authorized can never disagree about which clone they
-		// mean.
-		m.ReviewStoreResetSurveyFn = tuiReviewStoreSurvey
-		m.ReviewStoreResetFn = tuiReviewStoreReset
-		finalModel, err := runTUI(m, tea.WithAltScreen())
-		if err != nil {
-			return err
-		}
-		if latestVersion, ok := gentleAIUpgradeVersionFromTUI(finalModel); ok {
-			return restartAfterGentleAIUpgrade(latestVersion, stdout)
-		}
-		return nil
+		return runTUIApp(tui.ScreenWelcome, result, resolveProfile, stdout)
 	}
 
 	switch args[0] {
@@ -287,6 +211,9 @@ func RunArgs(args []string, stdout io.Writer) error {
 	case "upgrade":
 		return runUpgrade(context.Background(), *parsedUpgrade, result, stdout)
 	case "install":
+		if len(args) == 1 && isattyFn(os.Stdin.Fd()) && isattyFn(os.Stdout.Fd()) {
+			return runTUIApp(tui.ScreenAgents, result, resolveProfile, stdout)
+		}
 		installResult, err := cli.RunInstall(args[1:], result)
 		if err != nil {
 			return err
@@ -347,6 +274,63 @@ func gentleAIUpgradeVersionFromTUI(finalModel tea.Model) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+func runTUIApp(startScreen tui.Screen, result system.DetectionResult, resolveProfile func() system.PlatformProfile, stdout io.Writer) error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve user home directory: %w", err)
+	}
+
+	installedState, err := state.Read(homeDir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read install state: %w", err)
+	}
+
+	if installedState.PendingSync {
+		if err := deferredSyncFn(); err != nil {
+			_, _ = fmt.Fprintf(stdout, "Warning: deferred sync failed: %v\n", err)
+		} else {
+			installedState.PendingSync = false
+			if writeErr := state.Write(homeDir, installedState); writeErr != nil {
+				_, _ = fmt.Fprintf(stdout, "Warning: failed to clear PendingSync flag: %v\n", writeErr)
+			}
+		}
+		printPostUpgradeDoctorAdvisory(stdout)
+	}
+
+	m := tui.NewModel(result, Version, installedState)
+	if startScreen != tui.ScreenUnknown {
+		m.Screen = startScreen
+	}
+	m.ExecuteFn = tuiExecuteWithBackground
+	m.RestoreFn = tuiRestore
+	m.DeleteBackupFn = func(manifest backup.Manifest) error {
+		return backup.DeleteBackup(manifest)
+	}
+	m.RenameBackupFn = func(manifest backup.Manifest, newDesc string) error {
+		return backup.RenameBackup(manifest, newDesc)
+	}
+	m.TogglePinFn = func(manifest backup.Manifest) error {
+		return backup.TogglePin(manifest)
+	}
+	m.ListBackupsFn = ListBackups
+	m.Backups = ListBackups()
+	m.UpgradeFn = tuiUpgrade(resolveProfile(), homeDir)
+	m.SyncFn = tuiSync(homeDir)
+	m.UninstallFn = tuiUninstall(homeDir)
+	m.UninstallWithProfilesFn = tuiUninstallWithProfiles(homeDir)
+	m.OpenCodePluginUninstallFn = opencodeplugin.Uninstall
+	m.ReviewStoreResetSurveyFn = tuiReviewStoreSurvey
+	m.ReviewStoreResetFn = tuiReviewStoreReset
+	finalModel, err := runTUI(m, tea.WithAltScreen())
+	if err != nil {
+		return err
+	}
+	if latestVersion, ok := gentleAIUpgradeVersionFromTUI(finalModel); ok {
+		return restartAfterGentleAIUpgrade(latestVersion, stdout)
+	}
+	return nil
 }
 
 func runSkillRegistry(args []string, stdout io.Writer) error {
