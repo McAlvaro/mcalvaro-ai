@@ -2,8 +2,6 @@ package update
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"time"
 )
@@ -56,35 +54,5 @@ type Advisory struct {
 // It never blocks launch — callers must run it in a background goroutine when
 // zero-added-latency is required.
 func FetchAdvisory(ctx context.Context) (Advisory, bool) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, advisoryURL, nil)
-	if err != nil {
-		return Advisory{}, false
-	}
-	req.Header.Set("User-Agent", "gentle-ai-advisory-check")
-
-	resp, err := advisoryHTTPClient.Do(req)
-	if err != nil {
-		// Network error, timeout, or context cancellation — fail-open.
-		return Advisory{}, false
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// Non-200 (e.g. 404 before advisory tag is created) — fail-open.
-		return Advisory{}, false
-	}
-
-	var a Advisory
-	limited := io.LimitReader(resp.Body, advisoryMaxBytes)
-	if err := json.NewDecoder(limited).Decode(&a); err != nil {
-		// Malformed JSON or body exceeded the size cap — fail-open.
-		return Advisory{}, false
-	}
-
-	if a.Message == "" {
-		// Empty or absent message field — nothing to display.
-		return Advisory{}, false
-	}
-
-	return a, true
+	return Advisory{}, false
 }

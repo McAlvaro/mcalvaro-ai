@@ -143,8 +143,7 @@ func RenderWelcomeWithAdvisory(cursor int, version string, updateBanner string, 
 		return renderWelcomeMinimum(width, height, cursor)
 	}
 	fitsViewport := func(view string) bool {
-		return (width <= 0 || lipgloss.Width(view) <= width) &&
-			(height <= 0 || lipgloss.Height(view) <= height)
+		return height <= 0 || lipgloss.Height(view) <= height
 	}
 
 	view := render(true, true, false)
