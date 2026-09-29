@@ -8,22 +8,11 @@ import (
 
 // logoLines contains the ASCII art for the mcalvaro-ai logo.
 var logoLines = []string{
-	"MMMMMMMM               MMMMMMMM                                   AAA               lllllll                                                                                                 AAA               IIIIIIIIII",
-	"M:::::::M             M:::::::M                                  A:::A              l:::::l                                                                                                A:::A              I::::::::I",
-	"M::::::::M           M::::::::M                                 A:::::A             l:::::l                                                                                               A:::::A             I::::::::I",
-	"M:::::::::M         M:::::::::M                                A:::::::A            l:::::l                                                                                              A:::::::A            II::::::II",
-	"M::::::::::M       M::::::::::M    cccccccccccccccc           A:::::::::A            l::::lvvvvvvv           vvvvvvvaaaaaaaaaaaaa  rrrrr   rrrrrrrrr      ooooooooooo                   A:::::::::A             I::::I  ",
-	"M:::::::::::M     M:::::::::::M  cc:::::::::::::::c          A:::::A:::::A           l::::l v:::::v         v:::::v a::::::::::::a r::::rrr:::::::::r   oo:::::::::::oo                A:::::A:::::A            I::::I  ",
-	"M:::::::M::::M   M::::M:::::::M c:::::::::::::::::c         A:::::A A:::::A          l::::l  v:::::v       v:::::v  aaaaaaaaa:::::ar:::::::::::::::::r o:::::::::::::::o              A:::::A A:::::A           I::::I  ",
-	"M::::::M M::::M M::::M M::::::Mc:::::::cccccc:::::c        A:::::A   A:::::A         l::::l   v:::::v     v:::::v            a::::arr::::::rrrrr::::::ro:::::ooooo:::::o             A:::::A   A:::::A          I::::I  ",
-	"M::::::M  M::::M::::M  M::::::Mc::::::c     ccccccc       A:::::A     A:::::A        l::::l    v:::::v   v:::::v      aaaaaaa:::::a r:::::r     r:::::ro::::o     o::::o            A:::::A     A:::::A         I::::I  ",
-	"M::::::M   M:::::::M   M::::::Mc:::::c                   A:::::AAAAAAAAA:::::A       l::::l     v:::::v v:::::v     aa::::::::::::a r:::::r     rrrrrrro::::o     o::::o           A:::::AAAAAAAAA:::::A        I::::I  ",
-	"M::::::M    M:::::M    M::::::Mc:::::c                  A:::::::::::::::::::::A      l::::l      v:::::v:::::v     a::::aaaa::::::a r:::::r            o::::o     o::::o          A:::::::::::::::::::::A       I::::I  ",
-	"M::::::M     MMMMM     M::::::Mc::::::c     ccccccc    A:::::AAAAAAAAAAAAA:::::A     l::::l       v:::::::::v     a::::a    a:::::a r:::::r            o::::o     o::::o         A:::::AAAAAAAAAAAAA:::::A      I::::I  ",
-	"M::::::M               M::::::Mc:::::::cccccc:::::c   A:::::A             A:::::A   l::::::l       v:::::::v      a::::a    a:::::a r:::::r            o:::::ooooo:::::o        A:::::A             A:::::A   II::::::II",
-	"M::::::M               M::::::M c:::::::::::::::::c  A:::::A               A:::::A  l::::::l        v:::::v       a:::::aaaa::::::a r:::::r            o:::::::::::::::o       A:::::A               A:::::A  I::::::::I",
-	"M::::::M               M::::::M  cc:::::::::::::::c A:::::A                 A:::::A l::::::l         v:::v         a::::::::::aa:::ar:::::r             oo:::::::::::oo       A:::::A                 A:::::A I::::::::I",
-	"MMMMMMMM               MMMMMMMM    ccccccccccccccccAAAAAAA                   AAAAAAAllllllll          vvv           aaaaaaaaaa  aaaarrrrrrr               ooooooooooo        AAAAAAA                   AAAAAAAIIIIIIIIII",
+	`   __  ___         ___     __                             ___     ____ `,
+	`  /  |/  /   _____/   |   / /   _   __ ____ _____  ____  /   |   /  _/ `,
+	` / /|_/ /   / ___/ /| |  / /   | | / // __ ` + "`" + `/ ___// __ \/ /| |   / /   `,
+	`/ /  / /   / /__/ ___ | / /    | |/ // /_/ // /   / /_/ / ___ | _/ /    `,
+	`/_/  /_/    \___/_/  |_|/_/     |___/ \__,_//_/    \____/_/  |_|/___/    `,
 }
 
 // gradientColors defines the top-to-bottom Capuchino Macchiato gradient:

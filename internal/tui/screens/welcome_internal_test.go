@@ -130,3 +130,13 @@ func TestRenderWelcome_StaysWithinViewport(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderWelcome_IncludesLogoOnStartup(t *testing.T) {
+	// Standard Windows/Linux terminal startup size (e.g. 120x30 or 100x28).
+	for _, h := range []int{28, 30} {
+		view := RenderWelcomeWithAdvisory(0, "dev", "", nil, true, false, 0, true, 100, h, WelcomeAdvisory{})
+		if !strings.Contains(view, "/_/") {
+			t.Fatalf("expected welcome screen at 100x%d to include the logo, but it did not:\n%s", h, view)
+		}
+	}
+}

@@ -88,7 +88,7 @@ func RenderWelcomeWithAdvisory(cursor int, version string, updateBanner string, 
 
 		if includeLogo {
 			b.WriteString(styles.RenderLogo())
-			b.WriteString("\n\n")
+			b.WriteString("\n")
 		}
 		if !compact {
 			b.WriteString(styles.SubtextStyle.Render(styles.Tagline(version)))
@@ -106,27 +106,17 @@ func RenderWelcomeWithAdvisory(cursor int, version string, updateBanner string, 
 			}
 		}
 
-		if !compact && includeLogo {
-			b.WriteString("\n")
-		}
 		if compact {
 			b.WriteString(renderWelcomeText(styles.HeadingStyle, "Menu", width))
 		} else {
 			b.WriteString(styles.HeadingStyle.Render("Menu"))
 		}
-		if compact || !includeLogo {
-			b.WriteString("\n")
-		} else {
-			b.WriteString("\n\n")
-		}
+		b.WriteString("\n")
 		options := WelcomeOptions(updateResults, updateCheckDone, showProfiles, profileCount, hasEngines)
 		if compact {
 			b.WriteString(renderWelcomeOptions(options, cursor, width))
 		} else {
 			b.WriteString(renderOptions(options, cursor))
-		}
-		if !compact && includeLogo {
-			b.WriteString("\n")
 		}
 		if compact {
 			b.WriteString(renderWelcomeText(styles.HelpStyle, welcomeHelpText, width))
@@ -137,7 +127,7 @@ func RenderWelcomeWithAdvisory(cursor int, version string, updateBanner string, 
 		if compact {
 			return b.String()
 		}
-		return welcomeFrameStyle(width).Render(b.String())
+		return welcomeFrameStyle(width, height).Render(b.String())
 	}
 	if width > 0 && width <= styles.FrameStyle.GetHorizontalBorderSize() {
 		return renderWelcomeMinimum(width, height, cursor)
@@ -312,15 +302,19 @@ func welcomeContentWidth(width int) int {
 	return max(0, width-styles.FrameStyle.GetHorizontalFrameSize())
 }
 
-func welcomeFrameStyle(width int) lipgloss.Style {
+func welcomeFrameStyle(width int, height int) lipgloss.Style {
+	style := styles.FrameStyle
+	if height > 0 && height < 32 {
+		style = style.Padding(0, 2)
+	}
 	if width <= 0 {
-		return styles.FrameStyle
+		return style
 	}
-	borderWidth := styles.FrameStyle.GetHorizontalBorderSize()
+	borderWidth := style.GetHorizontalBorderSize()
 	if width <= borderWidth {
-		return styles.FrameStyle.MaxWidth(width)
+		return style.MaxWidth(width)
 	}
-	return styles.FrameStyle.Width(width - borderWidth)
+	return style.Width(width - borderWidth)
 }
 
 func wrapWelcomeBanner(text string, width int) string {
