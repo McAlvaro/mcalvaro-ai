@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================================
-# mcalvaro-ai (Gentle AI Lite) — Fast Autonomous Installer (Zero-Brew)
+# mcalvaro-ai — Fast Autonomous Installer (Zero-Brew)
 # Clean Triad: Orchestrator + Architect + Builder with Deterministic Test Harness
 # ============================================================================
 
@@ -27,32 +27,37 @@ success() { echo -e "${GREEN}[ok]${NC}      $*"; }
 error()   { echo -e "${RED}[error]${NC}   $*" >&2; }
 step()    { echo -e "\n${CYAN}${BOLD}==>${NC} ${BOLD}$*${NC}"; }
 
-step "Installing mcalvaro-ai (Gentle AI Lite)"
+step "Installing mcalvaro-ai"
 
 INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "${INSTALL_DIR}"
 
-if command -v go >/dev/null 2>&1; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Remove any legacy gentle binaries/symlinks
+rm -f "${INSTALL_DIR}/gentle" "${INSTALL_DIR}/gentle-ai" "${INSTALL_DIR}/gentle-ai-lite"
 
-    if [ -f "${REPO_DIR}/go.mod" ]; then
+if command -v go >/dev/null 2>&1; then
+    REPO_DIR=""
+    if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+    fi
+
+    if [ -n "${REPO_DIR}" ] && [ -f "${REPO_DIR}/go.mod" ]; then
         info "Compiling mcalvaro-ai from repository: ${REPO_DIR}"
-        go build -o "${INSTALL_DIR}/mcalvaro-ai" "${REPO_DIR}/cmd/gentle-ai"
+        SRC_CMD="${REPO_DIR}/cmd/mcalvaro-ai"
+        if [ ! -d "${SRC_CMD}" ]; then SRC_CMD="${REPO_DIR}/cmd/gentle-ai"; fi
+        go build -o "${INSTALL_DIR}/mcalvaro-ai" "${SRC_CMD}"
     else
         info "Cloning and building from https://github.com/McAlvaro/mcalvaro-ai.git..."
         TMP_SRC=$(mktemp -d)
         git clone --depth 1 https://github.com/McAlvaro/mcalvaro-ai.git "${TMP_SRC}"
-        (cd "${TMP_SRC}" && go build -o "${INSTALL_DIR}/mcalvaro-ai" ./cmd/gentle-ai)
+        SRC_CMD="./cmd/mcalvaro-ai"
+        if [ ! -d "${TMP_SRC}/cmd/mcalvaro-ai" ]; then SRC_CMD="./cmd/gentle-ai"; fi
+        (cd "${TMP_SRC}" && go build -o "${INSTALL_DIR}/mcalvaro-ai" "${SRC_CMD}")
         rm -rf "${TMP_SRC}"
     fi
 
-    # Create helpful aliases/symlinks
-    ln -sf "${INSTALL_DIR}/mcalvaro-ai" "${INSTALL_DIR}/gentle-ai"
-    ln -sf "${INSTALL_DIR}/mcalvaro-ai" "${INSTALL_DIR}/gentle-ai-lite"
-    ln -sf "${INSTALL_DIR}/mcalvaro-ai" "${INSTALL_DIR}/gentle"
-
-    success "Installed mcalvaro-ai and symlinks (gentle-ai, gentle) to ${INSTALL_DIR}"
+    success "Installed mcalvaro-ai to ${INSTALL_DIR}/mcalvaro-ai"
 else
     error "Go compiler not found. Please install Go (1.23+) to build mcalvaro-ai."
     exit 1
